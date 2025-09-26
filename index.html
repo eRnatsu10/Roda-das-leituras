@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Roleta Literária Wook · Leaf2Screen</title>
-  <meta name="description" content="Adiciona os títulos dos livros, gira a roleta, e compra na Wook com o teu link de afiliado." />
+  <meta name="description" content="Adiciona os títulos dos livros, clica em Substituir lista e depois gira a roleta. Compra na Wook com o teu link de afiliado." />
   <style>
     :root{ --brand:#26A69A; --brand-2:#D0EBEA; --ink:#0e2431; --muted:#55707d; --bg:#f7fbfb; --card:#ffffff; --radius:18px; }
     *{box-sizing:border-box}
@@ -18,11 +18,10 @@
     .card{background:var(--card);border:1px solid #e6f3f2;border-radius:var(--radius);padding:14px}
     .wheel-box{display:flex;align-items:center;justify-content:center;position:relative;aspect-ratio:1/1;width:100%;min-width:280px;min-height:280px;}
     canvas{width:100%;height:100%;display:block}
-    /* Ponteiro no topo a apontar para baixo */
     .pointer{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:24px;height:16px;background:var(--brand);clip-path:polygon(50% 100%,0 0,100% 0);filter:drop-shadow(0 1px 4px rgba(0,0,0,.2))}
-    /* Botão central que faz girar a roleta */
     .center-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:clamp(64px,12vw,110px);height:clamp(64px,12vw,110px);border-radius:999px;background:var(--brand);color:#fff;font-weight:800;border:none;box-shadow:0 6px 18px rgba(38,166,154,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;letter-spacing:.4px;z-index:2;touch-action:manipulation}
     .center-btn:active{transform:translate(-50%,-49%)}
+    .hidden{display:none}
     .result h2{font-size:18px;margin:0 0 4px}
     .muted{color:var(--muted);font-size:14px}
     .settings{display:flex;flex-direction:column;gap:10px}
@@ -37,24 +36,25 @@
 </head>
 <body>
   <div class="wrap">
-    <header><h1>Roleta Literária Leaf2screen</h1></header>
+    <header><h1>Roleta Literária Wook</h1></header>
 
     <div class="grid">
       <section class="card">
         <div class="wheel-box">
           <div class="pointer"></div>
-          <button id="centerBtn" class="center-btn" aria-label="Girar">Girar</button>
+          <!-- começa escondido; só aparece depois de "Substituir lista" -->
+          <button id="centerBtn" class="center-btn hidden" aria-label="Girar">Girar</button>
           <canvas id="wheel" width="900" height="900" aria-label="roleta"></canvas>
         </div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px">
-          <span class="small">Cola os títulos na lista e carrega no botão Girar!.</span>
+          <span class="small">Cola os títulos na “Gerir lista”, clica em <strong>Substituir lista</strong> e depois gira.</span>
         </div>
       </section>
 
       <aside class="card" id="aside">
         <div class="result" id="resultBox">
           <div>
-            <h2 id="title">Adiciona títulos e gira a roleta</h2>
+            <h2 id="title">Adiciona títulos e clica em Substituir lista</h2>
             <div class="muted" id="author"></div>
             <div style="margin-top:10px">
               <a id="wookLink" class="btn disabled" href="#" target="_blank" rel="noopener">Compra na Wook</a>
@@ -75,15 +75,15 @@ As Intermitências da Morte"></textarea>
             <div style="margin-top:8px">
               <button id="apply" class="btn">Substituir lista</button>
             </div>
-            <div class="small">Instruções de utilização: Coloca um título por linha e pressiona o botão "Substituir lista". Mínimo 2 títulos para girar a roleta.</div>
+            <div class="small">Dica: opcionalmente “título | url”.</div>
           </details>
         </div>
-        <div class="footer">Feito com 💚 pela Leaf2Screen.</div>
+        <div class="footer">Feito com 💚 pela Leaf2Screen. Sem cookies. Tudo local.</div>
       </aside>
     </div>
   </div>
 
-  <div class="toast" id="toast">Copiado</div>
+  <div class="toast" id="toast">Pronto</div>
 
   <script>
     const AFF_CODE = 'a_aid=689209ff3bc22';
@@ -107,6 +107,10 @@ As Intermitências da Morte"></textarea>
     const toast = document.getElementById('toast');
 
     function save(){ localStorage.setItem('books', JSON.stringify(state.books)); }
+    function updateSpinVisibility(){
+      if(state.books.length >= 1) centerBtn.classList.remove('hidden');
+      else centerBtn.classList.add('hidden');
+    }
 
     // ---------- Roleta (N segmentos com '?') ----------
     function drawWheel(){
@@ -116,15 +120,21 @@ As Intermitências da Morte"></textarea>
       ctx.clearRect(0,0,W,H);
 
       const n = state.books.length;
-      if(n < 2){
-        // Base com mensagem
+      if(n < 1){
+        // Disco base
         ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle='#eef6f5'; ctx.fill();
         ctx.strokeStyle='rgba(38,166,154,.3)'; ctx.lineWidth=2; ctx.stroke();
+        // Centro
         ctx.beginPath(); ctx.arc(cx,cy,60,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
         ctx.lineWidth=3; ctx.strokeStyle='rgba(38,166,154,.6)'; ctx.stroke();
+        // Instruções pedidas
         ctx.fillStyle='#0b3a36'; ctx.textAlign='center';
-        ctx.font='700 16px system-ui, sans-serif'; ctx.fillText('Adiciona pelo menos 2 títulos', cx, cy-4);
-        ctx.font='12px system-ui, sans-serif'; ctx.fillText('Secção “Gerir lista”', cx, cy+16);
+        ctx.font='700 16px system-ui, sans-serif';
+        ctx.fillText('Cola os títulos em “Gerir lista”', cx, cy-6);
+        ctx.font='600 14px system-ui, sans-serif';
+        ctx.fillText('e clica em Substituir lista.', cx, cy+14);
+        ctx.font='12px system-ui, sans-serif';
+        ctx.fillText('Depois aparece o botão Girar.', cx, cy+32);
         return;
       }
 
@@ -158,8 +168,9 @@ As Intermitências da Morte"></textarea>
     }
 
     function spin(){
-      if(state.spinning || state.books.length<2){
-        showToast('Adiciona pelo menos 2 títulos na “Gerir lista”.');
+      if(state.spinning || state.books.length<1){
+        // Em princípio o botão não existe quando n<1; isto é só para segurança
+        showToast('Cola os títulos e clica em Substituir lista.');
         return;
       }
       state.spinning = true;
@@ -201,7 +212,7 @@ As Intermitências da Morte"></textarea>
       wookLink.href = buildAffiliate('');
       wookLink.classList.remove('disabled');
 
-      // se já vem url, usa esse
+      // usa URL se existir
       if(book.url){ wookLink.href = buildAffiliate(book.url); return; }
 
       // tenta encontrar na Wook por título
@@ -212,7 +223,7 @@ As Intermitências da Morte"></textarea>
     }
 
     function clearResult(){
-      title.textContent = 'Adiciona títulos e gira a roleta';
+      title.textContent = 'Adiciona títulos e clica em Substituir lista';
       author.textContent = '';
       wookLink.href = '#';
       wookLink.classList.add('disabled');
@@ -265,9 +276,10 @@ As Intermitências da Morte"></textarea>
           return { title: parts[0], author: '', url: parts[1]||'' };
         }).filter(b=>b.title);
         state.books = books;
-        if(state.books.length<2){ showToast('Adiciona pelo menos 2 títulos.'); }
         localStorage.setItem('books', JSON.stringify(state.books));
+        updateSpinVisibility();
         drawWheel(); clearResult();
+        showToast('Lista atualizada');
       }catch(e){ console.error(e); showToast('Falha a importar. Confirma o formato.'); }
     });
 
@@ -285,10 +297,11 @@ As Intermitências da Morte"></textarea>
     window.addEventListener('load', fitCanvas);
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fitCanvas(); });
 
-    document.getElementById('centerBtn').addEventListener('click', spin);
+    centerBtn.addEventListener('click', spin);
 
     // Boot
     try { fitCanvas(); } catch(e){ console.error(e); }
+    updateSpinVisibility();
     clearResult();
   </script>
 </body>
