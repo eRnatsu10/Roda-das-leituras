@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roleta Literária Wook · Leaf2Screen</title>
+  <meta name="description" content="Adiciona os títulos dos livros, gira a roleta, e compra na Wook com o teu link de afiliado." />
+  <style>
+    :root{ --brand:#26A69A; --brand-2:#D0EBEA; --ink:#0e2431; --muted:#55707d; --bg:#f7fbfb; --card:#ffffff; --radius:18px; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);}
+    .wrap{max-width:1000px;margin:0 auto;padding:20px;}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:18px}
+    h1{font-size:clamp(20px,3vw,28px);margin:0;letter-spacing:.2px}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid #e6f3f2;border-radius:var(--radius);padding:14px}
+    .wheel-box{display:flex;align-items:center;justify-content:center;position:relative;aspect-ratio:1/1;width:100%;min-width:280px;min-height:280px;}
+    canvas{width:100%;height:100%;display:block}
+    /* Ponteiro no topo a apontar para baixo */
+    .pointer{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:24px;height:16px;background:var(--brand);clip-path:polygon(50% 100%,0 0,100% 0);filter:drop-shadow(0 1px 4px rgba(0,0,0,.2))}
+    /* Botão central que faz girar a roleta */
+    .center-btn{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:clamp(64px,12vw,110px);height:clamp(64px,12vw,110px);border-radius:999px;background:var(--brand);color:#fff;font-weight:800;border:none;box-shadow:0 6px 18px rgba(38,166,154,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;letter-spacing:.4px;z-index:2;touch-action:manipulation}
+    .center-btn:active{transform:translate(-50%,-49%)}
+    .result h2{font-size:18px;margin:0 0 4px}
+    .muted{color:var(--muted);font-size:14px}
+    .settings{display:flex;flex-direction:column;gap:10px}
+    textarea{width:100%;padding:10px;border:1px solid #d9ecea;border-radius:10px;background:#fbfefe}
+    .small{font-size:12px}
+    .footer{margin-top:20px;color:#6a848b;font-size:12px}
+    .toast{position:fixed;inset:auto 16px 16px;z-index:10;background:#0b3a36;color:#fff;padding:10px 14px;border-radius:12px;opacity:0;transform:translateY(8px);transition:all .25s}
+    .toast.show{opacity:1;transform:translateY(0)}
+    .btn{appearance:none;border:none;background:var(--brand);color:#fff;padding:12px 16px;border-radius:12px;font-weight:600;cursor:pointer}
+    .btn.disabled{opacity:.55;pointer-events:none}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header><h1>Roleta Literária Leaf2screen</h1></header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="wheel-box">
+          <div class="pointer"></div>
+          <button id="centerBtn" class="center-btn" aria-label="Girar">Girar</button>
+          <canvas id="wheel" width="900" height="900" aria-label="roleta"></canvas>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px">
+          <span class="small">Cola os títulos na lista e carrega no botão Girar!.</span>
+        </div>
+      </section>
+
+      <aside class="card" id="aside">
+        <div class="result" id="resultBox">
+          <div>
+            <h2 id="title">Adiciona títulos e gira a roleta</h2>
+            <div class="muted" id="author"></div>
+            <div style="margin-top:10px">
+              <a id="wookLink" class="btn disabled" href="#" target="_blank" rel="noopener">Compra na Wook</a>
+            </div>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid #e6f3f2;margin:14px 0">
+
+        <div class="settings">
+          <details open>
+            <summary><strong>Gerir lista</strong> (um título por linha)</summary>
+            <textarea id="paste" rows="6" placeholder="Exemplos:
+Hábitos Atómicos
+O Namorado
+O Segredo
+As Intermitências da Morte"></textarea>
+            <div style="margin-top:8px">
+              <button id="apply" class="btn">Substituir lista</button>
+            </div>
+            <div class="small">Instruções de utilização: Coloca um título por linha e pressiona o botão "Substituir lista". Mínimo 2 títulos para girar a roleta.</div>
+          </details>
+        </div>
+        <div class="footer">Feito com 💚 pela Leaf2Screen.</div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copiado</div>
+
+  <script>
+    const AFF_CODE = 'a_aid=689209ff3bc22';
+
+    let state = {
+      books: (JSON.parse(localStorage.getItem('books')||'[]')||[]),
+      rotation: 0,
+      spinning: false,
+      winner: null
+    };
+
+    // ---------- DOM ----------
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const centerBtn = document.getElementById('centerBtn');
+    const title = document.getElementById('title');
+    const author = document.getElementById('author');
+    const wookLink = document.getElementById('wookLink');
+    const paste = document.getElementById('paste');
+    const apply = document.getElementById('apply');
+    const toast = document.getElementById('toast');
+
+    function save(){ localStorage.setItem('books', JSON.stringify(state.books)); }
+
+    // ---------- Roleta (N segmentos com '?') ----------
+    function drawWheel(){
+      const W = canvas.width, H = canvas.height;
+      const cx = W/2, cy = H/2;
+      const r = Math.min(W,H)/2 - 10;
+      ctx.clearRect(0,0,W,H);
+
+      const n = state.books.length;
+      if(n < 2){
+        // Base com mensagem
+        ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle='#eef6f5'; ctx.fill();
+        ctx.strokeStyle='rgba(38,166,154,.3)'; ctx.lineWidth=2; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx,cy,60,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+        ctx.lineWidth=3; ctx.strokeStyle='rgba(38,166,154,.6)'; ctx.stroke();
+        ctx.fillStyle='#0b3a36'; ctx.textAlign='center';
+        ctx.font='700 16px system-ui, sans-serif'; ctx.fillText('Adiciona pelo menos 2 títulos', cx, cy-4);
+        ctx.font='12px system-ui, sans-serif'; ctx.fillText('Secção “Gerir lista”', cx, cy+16);
+        return;
+      }
+
+      const angle = (Math.PI*2)/n;
+      for(let i=0;i<n;i++){
+        const start = i*angle + state.rotation;
+        const end = start + angle;
+
+        ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,end); ctx.closePath();
+        ctx.fillStyle = `hsl(174, 40%, ${60 - i%2*10}%)`;
+        ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2; ctx.stroke();
+
+        // “?”
+        ctx.save();
+        ctx.translate(cx,cy);
+        ctx.rotate(start + angle/2);
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillStyle='#0b3a36';
+        const base = Math.round(r*0.12);
+        ctx.font = '700 ' + Math.max(16, Math.min(base, 56)) + 'px system-ui, sans-serif';
+        ctx.fillText('?', r - 56, 0);
+        ctx.restore();
+      }
+
+      // centro visual
+      ctx.beginPath(); ctx.arc(cx,cy,60,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle='rgba(38,166,154,.6)'; ctx.stroke();
+      ctx.fillStyle='#0b3a36'; ctx.font='600 20px system-ui, sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Gira', cx, cy-4);
+      ctx.font='12px system-ui, sans-serif'; ctx.fillText('Roleta Literária', cx, cy+14);
+    }
+
+    function spin(){
+      if(state.spinning || state.books.length<2){
+        showToast('Adiciona pelo menos 2 títulos na “Gerir lista”.');
+        return;
+      }
+      state.spinning = true;
+      const spins = 4 + Math.random()*3;
+      const target = Math.random()*Math.PI*2;
+      const startRot = state.rotation % (Math.PI*2);
+      const endRot = startRot + spins*Math.PI*2 + target;
+      const duration = 2600 + Math.random()*800;
+      const start = performance.now();
+
+      function animate(t){
+        const p = Math.min(1, (t-start)/duration);
+        const ease = 1 - Math.pow(1-p, 3);
+        state.rotation = startRot + (endRot-startRot)*ease;
+        drawWheel();
+        if(p<1) requestAnimationFrame(animate); else onStop();
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function onStop(){
+      const n = state.books.length;
+      const angle = (Math.PI*2)/n;
+      const a = (Math.PI*1.5 - state.rotation) % (Math.PI*2); // ponteiro no topo
+      let idx = Math.floor(a/angle); if(idx<0) idx += n;
+
+      const book = state.books[idx];
+      state.winner = book;
+      showResult(book);
+      state.spinning = false;
+    }
+
+    // ---------- Resultado ----------
+    async function showResult(book){
+      title.textContent = book.title || 'Livro';
+      author.textContent = book.author ? ('de ' + book.author) : '';
+
+      // por defeito: homepage com afiliado
+      wookLink.href = buildAffiliate('');
+      wookLink.classList.remove('disabled');
+
+      // se já vem url, usa esse
+      if(book.url){ wookLink.href = buildAffiliate(book.url); return; }
+
+      // tenta encontrar na Wook por título
+      try{
+        const found = await searchWookByTitle(book.title||'');
+        if(found.url){ wookLink.href = buildAffiliate(found.url); }
+      }catch(e){}
+    }
+
+    function clearResult(){
+      title.textContent = 'Adiciona títulos e gira a roleta';
+      author.textContent = '';
+      wookLink.href = '#';
+      wookLink.classList.add('disabled');
+    }
+
+    function buildAffiliate(url){
+      const aff = AFF_CODE;
+      if(!url) return 'https://www.wook.pt?' + aff;
+      try{
+        const u = new URL(url, window.location.origin);
+        const base = (u.origin + u.pathname).replace(/\/$/, '');
+        return base + '?' + aff;
+      }catch(e){
+        const base = (url.split('?')[0]||'').split('#')[0];
+        return base ? (base + '?' + aff) : ('https://www.wook.pt?' + aff);
+      }
+    }
+
+    async function searchWookByTitle(title){
+      const q = encodeURIComponent(title);
+      const searchProxy = `https://r.jina.ai/http://www.wook.pt/pesquisa?keyword=${q}`;
+      try{
+        const res = await fetch(searchProxy, {cache:'no-store'});
+        if(!res.ok) throw new Error('search fetch failed');
+        const html = await res.text();
+        const m = html.match(/\/(?:livro|ebook)\/[^"'<>]+\/\d+/i);
+        if(m){
+          const path = m[0];
+          const productUrl = 'https://www.wook.pt' + path;
+          return { url: productUrl };
+        }
+      }catch(err){}
+      return { url: '' };
+    }
+
+    function showToast(msg){
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(()=>toast.classList.remove('show'), 1500);
+    }
+
+    // ---------- Importação manual ----------
+    apply.addEventListener('click', ()=>{
+      const raw = paste.value.trim();
+      if(!raw){ showToast('Nada para importar'); return; }
+      try{
+        const lines = raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+        const books = lines.map(line=>{
+          const parts = line.split('|').map(s=>s.trim());
+          return { title: parts[0], author: '', url: parts[1]||'' };
+        }).filter(b=>b.title);
+        state.books = books;
+        if(state.books.length<2){ showToast('Adiciona pelo menos 2 títulos.'); }
+        localStorage.setItem('books', JSON.stringify(state.books));
+        drawWheel(); clearResult();
+      }catch(e){ console.error(e); showToast('Falha a importar. Confirma o formato.'); }
+    });
+
+    // ---------- Resize/Boot ----------
+    function fitCanvas(){
+      const box = document.querySelector('.wheel-box');
+      const bw = box ? box.clientWidth : 0;
+      const size = Math.max(320, Math.min(bw||0, 560));
+      const scale = window.devicePixelRatio || 1;
+      canvas.width = size*scale; canvas.height = size*scale;
+      canvas.style.width = size+'px'; canvas.style.height = size+'px';
+      drawWheel();
+    }
+    window.addEventListener('resize', fitCanvas);
+    window.addEventListener('load', fitCanvas);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) fitCanvas(); });
+
+    document.getElementById('centerBtn').addEventListener('click', spin);
+
+    // Boot
+    try { fitCanvas(); } catch(e){ console.error(e); }
+    clearResult();
+  </script>
+</body>
+</html>
