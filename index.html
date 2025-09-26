@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Roleta Literária Wook · Leaf2Screen</title>
-  <meta name="description" content="Adiciona os títulos dos livros, clica em Substituir lista e depois gira a roleta. Compra na Wook com o teu link de afiliado." />
+  <meta name="description" content="Adiciona os títulos dos livros, clica em Substituir lista e depois gira a roleta." />
   <style>
     :root{ --brand:#26A69A; --brand-2:#D0EBEA; --ink:#0e2431; --muted:#55707d; --bg:#f7fbfb; --card:#ffffff; --radius:18px; }
     *{box-sizing:border-box}
@@ -47,7 +47,7 @@
           <canvas id="wheel" width="900" height="900" aria-label="roleta"></canvas>
         </div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:10px">
-          <span class="small">Cola os títulos na “Gerir lista”, clica em <strong>Substituir lista</strong> </span>
+          <span class="small">Cola os títulos na “Gerir lista”, clica em <strong>Substituir lista</strong> e depois gira.</span>
         </div>
       </section>
 
@@ -75,10 +75,10 @@ As Intermitências da Morte"></textarea>
             <div style="margin-top:8px">
               <button id="apply" class="btn">Substituir lista</button>
             </div>
-            <div class="small">Dica: opcionalmente “título | Autor”.</div>
+            <div class="small">Dica: opcionalmente “título | url”.</div>
           </details>
         </div>
-        <div class="footer">Feito com 💚 pela Leaf2Screen..</div>
+        <div class="footer">Feito com 💚 pela Leaf2Screen. Sem cookies. Tudo local.</div>
       </aside>
     </div>
   </div>
@@ -121,20 +121,12 @@ As Intermitências da Morte"></textarea>
 
       const n = state.books.length;
       if(n < 1){
-        // Disco base
+        // Disco base (sem texto no centro)
         ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle='#eef6f5'; ctx.fill();
         ctx.strokeStyle='rgba(38,166,154,.3)'; ctx.lineWidth=2; ctx.stroke();
         // Centro
         ctx.beginPath(); ctx.arc(cx,cy,60,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
         ctx.lineWidth=3; ctx.strokeStyle='rgba(38,166,154,.6)'; ctx.stroke();
-        // Instruções pedidas
-        ctx.fillStyle='#0b3a36'; ctx.textAlign='center';
-        ctx.font='700 16px system-ui, sans-serif';
-        ctx.fillText('Cola os títulos em “Gerir lista”', cx, cy-6);
-        ctx.font='600 14px system-ui, sans-serif';
-        ctx.fillText('e clica em Substituir lista.', cx, cy+14);
-        ctx.font='12px system-ui, sans-serif';
-        ctx.fillText('Depois aparece o botão Girar.', cx, cy+32);
         return;
       }
 
@@ -159,17 +151,13 @@ As Intermitências da Morte"></textarea>
         ctx.restore();
       }
 
-      // centro visual
+      // Centro visual (sem texto)
       ctx.beginPath(); ctx.arc(cx,cy,60,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
       ctx.lineWidth = 3; ctx.strokeStyle='rgba(38,166,154,.6)'; ctx.stroke();
-      ctx.fillStyle='#0b3a36'; ctx.font='600 20px system-ui, sans-serif'; ctx.textAlign='center';
-      ctx.fillText('Gira', cx, cy-4);
-      ctx.font='12px system-ui, sans-serif'; ctx.fillText('Roleta Literária', cx, cy+14);
     }
 
     function spin(){
       if(state.spinning || state.books.length<1){
-        // Em princípio o botão não existe quando n<1; isto é só para segurança
         showToast('Cola os títulos e clica em Substituir lista.');
         return;
       }
@@ -306,4 +294,3 @@ As Intermitências da Morte"></textarea>
   </script>
 </body>
 </html>
-
